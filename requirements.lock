@@ -1,0 +1,36 @@
+# =============================================================================
+# Forecasting Financial Inclusion in Ethiopia
+# Locked production dependencies
+# Python >=3.10,<4.0
+# =============================================================================
+
+# --- Core scientific stack ---
+numpy==1.26.4
+pandas==2.2.2
+scipy==1.13.1
+
+# --- Configuration & I/O ---
+PyYAML==6.0.2
+python-dotenv==1.0.1
+
+# --- Visualization ---
+matplotlib==3.9.1
+seaborn==0.13.2
+plotly==5.23.0
+
+# --- Statistics & time series ---
+statsmodels==0.14.2
+pmdarima==2.0.4
+
+# --- Machine learning ---
+scikit-learn==1.5.1
+
+# --- Probabilistic / forecasting ---
+prophet==1.1.5
+
+# --- Dashboard ---
+streamlit==1.37.1
+
+# --- Utilities ---
+tqdm==4.66.4
+loguru==0.7.2
