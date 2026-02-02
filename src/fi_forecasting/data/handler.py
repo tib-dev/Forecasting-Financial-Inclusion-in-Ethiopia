@@ -1,184 +1,209 @@
+# src/fi_forecasting/data/handlers.py
+
+from __future__ import annotations
+
+from pathlib import Path
+from typing import Optional, Any
+import logging
+
 import pandas as pd
 import matplotlib.pyplot as plt
-from pathlib import Path
-from typing import Union, Literal, Optional, Any
-import logging
 import joblib
 
-from fi_forecasting.core.settings import settings
+from fi_forecasting.core.settings import get_settings
 
 logger = logging.getLogger(__name__)
+settings = get_settings()
 
+# ============================================================================
+# Base
+# ============================================================================
 
-class DataHandler:
+class BaseHandler:
     """
-    DataHandler manages all I/O operations for the project.
+    Base class for all I/O handlers.
 
-    Supported:
-    - Tabular data (csv, parquet, excel, json)
-    - Serialized objects (pkl, joblib) via joblib
-    - Plot saving
-
-    Paths are resolved via the central settings registry.
+    Responsibilities:
+    - Own a concrete filesystem path
+    - Ensure parent directories exist
+    - Provide consistent logging surface
     """
 
-    def __init__(
+    def __init__(self, path: Path):
+        self.path = path.resolve()
+        self.path.parent.mkdir(parents=True, exist_ok=True)
+
+    def exists(self) -> bool:
+        return self.path.exists()
+
+
+# ============================================================================
+# Tabular Data (pandas)
+# ============================================================================
+
+class TabularHandler(BaseHandler):
+    """
+    Handler for tabular datasets (CSV, Parquet, Excel, JSON).
+
+    Explicit methods only.
+    No file-type inference.
+    """
+
+    # -------------------------
+    # CSV
+    # -------------------------
+    def load_csv(self, **kwargs) -> pd.DataFrame:
+        logger.info("Loading CSV: %s", self.path)
+        return pd.read_csv(self.path, **kwargs)
+
+    def save_csv(
         self,
-        filepath: Union[str, Path],
-        file_type: Optional[str] = None,
-        **kwargs
+        df: pd.DataFrame,
+        *,
+        index: bool = False,
+        **kwargs,
+    ) -> None:
+        logger.info("Saving CSV: %s", self.path)
+        df.to_csv(self.path, index=index, **kwargs)
+
+    # -------------------------
+    # Parquet
+    # -------------------------
+    def load_parquet(self, **kwargs) -> pd.DataFrame:
+        logger.info("Loading Parquet: %s", self.path)
+        return pd.read_parquet(self.path, **kwargs)
+
+    def save_parquet(self, df: pd.DataFrame, **kwargs) -> None:
+        logger.info("Saving Parquet: %s", self.path)
+        df.to_parquet(self.path, **kwargs)
+
+    # -------------------------
+    # Excel
+    # -------------------------
+    def load_excel(
+        self,
+        sheet_name: Optional[str] = None,
+        **kwargs,
     ):
         """
-        Initialize the handler.
-
-        Args:
-            filepath: Full path to file
-            file_type: Optional override of file type
-            **kwargs: Passed to pandas/joblib I/O
+        Returns:
+            DataFrame or dict[str, DataFrame] if sheet_name=None
         """
-        self.filepath = Path(filepath)
-        self.file_type = file_type.lower() if file_type else self.filepath.suffix.replace(".", "")
-        self.kwargs = kwargs
+        logger.info(
+            "Loading Excel: %s (sheet=%s)", self.path, sheet_name
+        )
+        return pd.read_excel(
+            self.path,
+            sheet_name=sheet_name,
+            **kwargs,
+        )
 
-    # ------------------------------------------------------------------
-    # Load
-    # ------------------------------------------------------------------
+    def save_excel(
+        self,
+        df: pd.DataFrame,
+        *,
+        index: bool = False,
+        **kwargs,
+    ) -> None:
+        logger.info("Saving Excel: %s", self.path)
+        df.to_excel(self.path, index=index, **kwargs)
+
+    # -------------------------
+    # JSON
+    # -------------------------
+    def load_json(self, **kwargs) -> pd.DataFrame:
+        logger.info("Loading JSON: %s", self.path)
+        return pd.read_json(self.path, **kwargs)
+
+    def save_json(self, df: pd.DataFrame, **kwargs) -> None:
+        logger.info("Saving JSON: %s", self.path)
+        df.to_json(self.path, **kwargs)
+
+
+# ============================================================================
+# Serialized Objects (models, artifacts)
+# ============================================================================
+
+class ObjectHandler(BaseHandler):
+    """
+    Handler for serialized Python objects (joblib).
+    """
 
     def load(self) -> Any:
-        """
-        Load data or object from disk.
+        logger.info("Loading object: %s", self.path)
+        return joblib.load(self.path)
 
-        Returns:
-            DataFrame or Python object (for pkl/joblib)
-        """
-        try:
-            if self.file_type == "csv":
-                return pd.read_csv(self.filepath, **self.kwargs)
+    def save(self, obj: Any) -> None:
+        logger.info("Saving object: %s", self.path)
+        joblib.dump(obj, self.path)
 
-            if self.file_type == "parquet":
-                return pd.read_parquet(self.filepath, **self.kwargs)
 
-            if self.file_type in {"excel", "xlsx"}:
-                return pd.read_excel(self.filepath, **self.kwargs)
+# ============================================================================
+# Plots
+# ============================================================================
 
-            if self.file_type == "json":
-                return pd.read_json(self.filepath, **self.kwargs)
+class PlotHandler(BaseHandler):
+    """
+    Handler for saving matplotlib figures.
+    """
 
-            if self.file_type in {"pkl", "joblib"}:
-                return joblib.load(self.filepath)
-
-            raise ValueError(f"Unsupported load type: {self.file_type}")
-
-        except Exception as e:
-            logger.error(f"Failed to load file at {self.filepath}: {e}")
-            raise
-
-    # ------------------------------------------------------------------
-    # Save
-    # ------------------------------------------------------------------
-
-    def save(self, obj: Any):
-        """
-        Save a DataFrame or Python object to disk.
-
-        Args:
-            obj: DataFrame (csv/parquet/…) or model/object (pkl/joblib)
-        """
-        self.filepath.parent.mkdir(parents=True, exist_ok=True)
-
-        try:
-            if self.file_type == "csv":
-                obj.to_csv(self.filepath, index=self.kwargs.get(
-                    "index", False), **self.kwargs)
-
-            elif self.file_type == "parquet":
-                obj.to_parquet(self.filepath, **self.kwargs)
-
-            elif self.file_type in {"excel", "xlsx"}:
-                obj.to_excel(self.filepath, index=self.kwargs.get(
-                    "index", False), **self.kwargs)
-
-            elif self.file_type == "json":
-                obj.to_json(self.filepath, **self.kwargs)
-
-            elif self.file_type in {"pkl", "joblib"}:
-                joblib.dump(obj, self.filepath)
-
-            else:
-                raise ValueError(f"Unsupported save type: {self.file_type}")
-
-            logger.info(f"File successfully saved to {self.filepath}")
-
-        except Exception as e:
-            logger.error(f"Failed to save file at {self.filepath}: {e}")
-            raise
-
-    # ------------------------------------------------------------------
-    # Registry Factory
-    # ------------------------------------------------------------------
-    CoreSection = Literal["DATA", "REPORTS", "MODELS"]
-
-    @classmethod
-    def from_registry(
-        cls,
-        section: Union[CoreSection, str],
-        path_key: str,
-        filename: str,
-        **kwargs
-    ):
-        """
-        Create a DataHandler using paths defined in settings.
-
-        Example:
-            DataHandler.from_registry(
-                section="MODELS",
-                path_key="models_dir",
-                filename="best_model.pkl"
-            )
-        """
-        try:
-            registry_section = getattr(settings.paths, section.upper())
-            base_path = registry_section[path_key]
-            full_path = base_path / filename
-            return cls(filepath=full_path, **kwargs)
-
-        except (AttributeError, KeyError) as e:
-            logger.error(
-                f"Path not found in registry: {section} -> {path_key}. Error: {e}"
-            )
-            raise
-
-    # ------------------------------------------------------------------
-    # Plot Saving
-    # ------------------------------------------------------------------
-
-    @staticmethod
-    def save_plot(
-        filename: str,
+    def save(
+        self,
         fig: Optional[plt.Figure] = None,
-        **kwargs
-    ):
-        """
-        Save a matplotlib figure to the reports/plots directory.
+        **kwargs,
+    ) -> Path:
+        logger.info("Saving plot: %s", self.path)
 
-        Args:
-            filename: Output filename
-            fig: Optional matplotlib Figure
-        """
-        plot_dir = settings.paths.REPORTS["plots_dir"]
-        plot_dir.mkdir(parents=True, exist_ok=True)
+        if fig is not None:
+            fig.savefig(self.path, bbox_inches="tight", **kwargs)
+        else:
+            plt.savefig(self.path, bbox_inches="tight", **kwargs)
 
-        save_path = plot_dir / filename
+        return self.path
 
-        try:
-            if fig:
-                fig.savefig(save_path, bbox_inches="tight", **kwargs)
-            else:
-                plt.savefig(save_path, bbox_inches="tight", **kwargs)
 
-            logger.info(f"Plot saved to: {save_path}")
-            return save_path
+# ============================================================================
+# Registry-backed Factory (the main entry point)
+# ============================================================================
 
-        except Exception as e:
-            logger.error(f"Failed to save plot {filename}: {e}")
-            raise
+class HandlerFactory:
+    """
+    Factory that resolves paths via Settings.PathRegistry
+    and returns strongly-typed handlers.
+
+    This is the ONLY place that should touch settings.paths.
+    """
+
+    def __init__(self, settings_obj: Settings = settings):
+        self.settings = settings_obj
+
+    # -------------------------
+    # Tabular
+    # -------------------------
+    def tabular(
+        self,
+        section: str,
+        key: str,
+        filename: str,
+    ) -> TabularHandler:
+        base = getattr(self.settings.paths, section.upper())[key]
+        return TabularHandler(base / filename)
+
+    # -------------------------
+    # Objects / models
+    # -------------------------
+    def object(
+        self,
+        section: str,
+        key: str,
+        filename: str,
+    ) -> ObjectHandler:
+        base = getattr(self.settings.paths, section.upper())[key]
+        return ObjectHandler(base / filename)
+
+    # -------------------------
+    # Plots
+    # -------------------------
+    def plot(self, filename: str) -> PlotHandler:
+        base = self.settings.paths.REPORTS["figures"]
+        return PlotHandler(base / filename)

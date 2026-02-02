@@ -51,6 +51,7 @@ dependencies = [
     "numpy",
     "pandas",
     "scipy",
+    "openpyxl",
 
     # Configuration & I/O
     "pyyaml",
