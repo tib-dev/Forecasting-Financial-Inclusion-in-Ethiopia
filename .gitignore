@@ -1,0 +1,73 @@
+# --- Python / Environment ---
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+src/*.egg-info/
+*.egg-info/
+
+# --- Environment Secrets (CRITICAL) ---
+.env
+.env.*
+!.env.example
+*.session
+*.session-journal
+
+# --- Data and Logs ---
+data/
+logs/
+*.log
+# If you want to keep data folder structure but ignore files:
+# !data/.gitkeep
+
+# --- dbt (Data Build Tool) ---
+dbt/logs/
+dbt/target/
+dbt/medical_warehouse/logs/
+dbt/medical_warehouse/target/
+dbt/medical_warehouse/dbt_packages/
+dbt/medical_warehouse/dbt_modules/
+
+# --- AI / Machine Learning ---
+# Ignore model weights
+*.pt
+*.pth
+*.onnx
+*.weights
+yolov8n.pt
+
+# --- Dagster ---
+# Ignore local dagster storage and temporary files
+.dagster/
+storage/
+*.db
+.tmp*
+
+# --- IDEs / Editors ---
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+
+# --- Shell / Setup ---
+# init_setup.sh is usually kept in git, 
+# but ignore it if it contains local-only paths
+# init_setup.sh

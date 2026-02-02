@@ -1,0 +1,173 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+# =============================================================================
+# Project Metadata
+# =============================================================================
+
+[project]
+name = "fi_forecasting"
+version = "0.1.0"
+description = "Policy-grade forecasting and impact modeling system for financial inclusion in Ethiopia"
+readme = "README.md"
+requires-python = ">=3.10,<4.0"
+license = { text = "MIT" }
+
+authors = [
+    { name = "Tibebu Kaleb", email = "wise.tibec@gmail.com" }
+]
+
+keywords = [
+    "financial-inclusion",
+    "policy-analytics",
+    "time-series-forecasting",
+    "event-impact-modeling",
+    "global-findex",
+    "development-economics",
+    "scenario-analysis",
+    "digital-finance",
+    "ethiopia"
+]
+
+classifiers = [
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3 :: Only",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Topic :: Scientific/Engineering :: Information Analysis",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Topic :: Office/Business :: Financial",
+    "Intended Audience :: Science/Research",
+    "Intended Audience :: Financial and Insurance Industry"
+]
+
+# =============================================================================
+# Core Dependencies
+# =============================================================================
+
+dependencies = [
+    # Core scientific stack
+    "numpy",
+    "pandas",
+    "scipy",
+
+    # Configuration & I/O
+    "pyyaml",
+    "python-dotenv",
+
+    # Visualization
+    "matplotlib",
+    "seaborn",
+    "plotly",
+
+    # Statistics & time series
+    "statsmodels",
+    "pmdarima",
+
+    # Machine learning
+    "scikit-learn",
+
+    # Uncertainty & probabilistic modeling
+    "prophet",
+
+    # Dashboarding
+    "streamlit",
+
+    # Utilities
+    "tqdm",
+    "loguru"
+]
+
+# =============================================================================
+# Optional Dependencies
+# =============================================================================
+
+[project.optional-dependencies]
+dev = [
+    "pytest",
+    "pytest-cov",
+    "black",
+    "isort",
+    "flake8",
+    "mypy",
+    "pre-commit",
+    "jupyter",
+    "ipykernel"
+]
+
+docs = [
+    "mkdocs",
+    "mkdocs-material"
+]
+
+# =============================================================================
+# Project URLs
+# =============================================================================
+
+[project.urls]
+Homepage = "https://github.com/tib-dev/forecasting-financial-inclusion-ethiopia"
+Source = "https://github.com/tib-dev/forecasting-financial-inclusion-ethiopia"
+Documentation = "https://github.com/tib-dev/forecasting-financial-inclusion-ethiopia#readme"
+
+# =============================================================================
+# Package Discovery
+# =============================================================================
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["fi_forecasting*"]
+
+# =============================================================================
+# Formatting & Linting
+# =============================================================================
+
+[tool.black]
+line-length = 88
+target-version = ["py310", "py311", "py312"]
+exclude = '''
+/(
+    \.venv
+  | \.git
+  | data
+  | notebooks
+  | reports
+  | dashboard
+)/
+'''
+
+[tool.isort]
+profile = "black"
+line_length = 88
+src_paths = ["src"]
+
+[tool.flake8]
+max-line-length = 88
+extend-ignore = ["E203", "W503"]
+exclude = [
+    ".venv",
+    ".git",
+    "__pycache__",
+    "data",
+    "notebooks",
+    "reports",
+    "dashboard"
+]
+
+# =============================================================================
+# Testing & Coverage
+# =============================================================================
+
+[tool.pytest.ini_options]
+minversion = "7.0"
+addopts = "-ra --cov=fi_forecasting"
+testpaths = ["tests"]
+
+[tool.coverage.run]
+source = ["fi_forecasting"]
+omit = [
+    "tests/*",
+    "notebooks/*",
+    "reports/*",
+    "dashboard/*"
+]
