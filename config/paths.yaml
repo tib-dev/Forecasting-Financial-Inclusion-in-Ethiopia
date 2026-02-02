@@ -1,0 +1,15 @@
+paths:
+  data:
+    raw:
+      finindex: data/raw/finindex
+      operators: data/raw/operators
+      infrastructure: data/raw/infrastructure
+    staged:
+      unified: data/staged/ethiopia_fi_unified_data.csv
+    reference:
+      codes: data/reference/reference_codes.csv
+
+datasets:
+  unified:
+    name: ethiopia_fi_unified_data
+    primary_key: id
