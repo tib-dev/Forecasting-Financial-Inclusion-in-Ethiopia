@@ -31,7 +31,7 @@ src/*.egg-info/
 *.session-journal
 
 # --- Data and Logs ---
-data/
+data/raw
 logs/
 *.log
 # If you want to keep data folder structure but ignore files:
@@ -68,6 +68,6 @@ storage/
 .DS_Store
 
 # --- Shell / Setup ---
-# init_setup.sh is usually kept in git, 
+# init_setup.sh is usually kept in git,
 # but ignore it if it contains local-only paths
 # init_setup.sh
