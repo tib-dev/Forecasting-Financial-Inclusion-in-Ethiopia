@@ -166,6 +166,7 @@ forecasting-financial-inclusion-ethiopia/
 
 ## System Architecture
 
+```text
 ┌──────────────────────────┐
 │ Global Findex & Reports │
 │ Operator & Infra Data │
@@ -202,6 +203,7 @@ forecasting-financial-inclusion-ethiopia/
 │ Interactive Dashboard │
 │ & Policy Insights │
 └──────────────────────────┘
+```
 
 ## Analytical Pipeline
 
