@@ -1,0 +1,44 @@
+events:
+  categories:
+    - policy
+    - product_launch
+    - infrastructure
+    - market_entry
+    - partnership
+    - milestone
+    - regulatory
+    - investment
+
+  default_impacts:
+    policy:
+      lag_months: 12
+      magnitude: "medium"
+    product_launch:
+      lag_months: 6
+      magnitude: "high"
+    infrastructure:
+      lag_months: 18
+      magnitude: "medium"
+    market_entry:
+      lag_months: 12
+      magnitude: "high"
+    partnership:
+      lag_months: 9
+      magnitude: "low"
+    milestone:
+      lag_months: 3
+      magnitude: "low"
+
+  magnitude_values:
+    high: 0.15
+    medium: 0.08
+    low: 0.03
+    very_high: 0.25
+
+  evidence_basis_types:
+    - empirical_ethiopia
+    - comparative_kenya
+    - comparative_tanzania
+    - expert_judgment
+    - literature_review
+    - stakeholder_interview
