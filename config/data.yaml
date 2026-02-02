@@ -1,0 +1,55 @@
+paths:
+  data:
+    raw: "data/raw"
+    staged: "data/staged"
+    curated: "data/curated"
+    reference: "data/reference"
+
+  reports:
+    figures: "reports/figures"
+    logs: "reports/logs"
+
+  notebooks: "notebooks"
+
+  src: "src"
+
+data:
+  unified:
+    filename: "ethiopia_fi_unified_data.csv"
+    reference_codes: "reference_codes.csv"
+    date_columns:
+      - observation_date
+      - event_date
+      - start_date
+      - end_date
+    categorical_columns:
+      - record_type
+      - pillar
+      - indicator
+      - indicator_code
+      - source_type
+      - confidence
+      - category
+      - impact_direction
+      - evidence_basis
+
+  enrich:
+    min_confidence: "medium"
+    required_sources:
+      - Global Findex
+      - National Bank of Ethiopia
+      - GSMA
+      - ITU
+    default_collected_by: "Data Scientist"
+
+datasets:
+  unified_excel:
+    path: data/raw/ethiopia_fi_unified_data.xlsx
+    main_sheet: ethiopia_fi_unified_data
+    impact_sheet: Impact_sheet
+
+  reference_codes_excel:
+    path: data/raw/reference_codes.xlsx
+
+  additional_data_guide:
+    path: data/raw/Additional Data Points Guide.xlsx
