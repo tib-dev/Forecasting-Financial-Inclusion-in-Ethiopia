@@ -1,0 +1,34 @@
+indicators:
+  access:
+    primary: "ACC_OWNERSHIP"
+    codes:
+      - ACC_OWNERSHIP
+      - ACC_BANK_ACCOUNT
+      - ACC_MM_ACCOUNT
+      - ACC_FINANCIAL_INSTITUTION
+
+  usage:
+    primary: "USG_DIGITAL_PAYMENT"
+    codes:
+      - USG_DIGITAL_PAYMENT
+      - USG_MM_TRANSACTION
+      - USG_CARD_PAYMENT
+      - USG_ONLINE_PAYMENT
+      - USG_ACCOUNT_RECEIVE_WAGES
+
+  infrastructure:
+    codes:
+      - INFRA_ATM_DENSITY
+      - INFRA_BANK_BRANCHES
+      - INFRA_MM_AGENTS
+      - INFRA_POS_TERMINALS
+      - INFRA_QR_MERCHANTS
+
+  enablers:
+    codes:
+      - ENABLE_SMARTPHONE_PENETRATION
+      - ENABLE_MOBILE_INTERNET
+      - ENABLE_4G_COVERAGE
+      - ENABLE_LITERACY_RATE
+      - ENABLE_ELECTRICITY_ACCESS
+      - ENABLE_DIGITAL_ID
