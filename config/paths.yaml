@@ -1,15 +1,32 @@
 paths:
   data:
-    raw:
-      finindex: data/raw/finindex
-      operators: data/raw/operators
-      infrastructure: data/raw/infrastructure
-    staged:
-      unified: data/staged/ethiopia_fi_unified_data.csv
-    reference:
-      codes: data/reference/reference_codes.csv
+    raw: "data/raw"
+    staged: "data/staged"
+    curated: "data/curated"
+    reference: "data/reference"
 
-datasets:
-  unified:
-    name: ethiopia_fi_unified_data
-    primary_key: id
+  reports:
+    figures: "reports/figures"
+    logs: "reports/logs"
+    docs: "reports/docs"
+
+  notebooks:
+    root: "notebooks"
+    exploration: "notebooks/exploration"
+    analysis: "notebooks/analysis"
+
+  src:
+    root: "src"
+    modules: "src/fi_forecasting"
+
+  tests:
+    root: "tests"
+    unit: "tests/unit"
+    integration: "tests/integration"
+
+  scripts:
+    root: "scripts"
+    pipeline: "scripts/pipeline"
+
+  config:
+    root: "config"
