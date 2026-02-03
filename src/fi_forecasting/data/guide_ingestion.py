@@ -5,10 +5,6 @@ from datetime import datetime
 from typing import List, Dict, Callable
 
 
-# -------------------------------------------------
-# Core helpers
-# -------------------------------------------------
-
 def _now() -> str:
     return datetime.now().strftime("%Y-%m-%d")
 
@@ -25,7 +21,7 @@ def append_records(
 
     return pd.concat(
         [df, pd.DataFrame.from_records(records)],
-        ignore_index=True
+        ignore_index=True,
     )
 
 
@@ -39,26 +35,26 @@ def add_indicator_definitions(
     log_fn: Callable | None = None,
 ) -> pd.DataFrame:
     """
-    Add new indicator definitions to the enriched dataset.
+    Add indicator_definition records to the dataset.
     """
     df_enriched = append_records(df_enriched, indicator_defs)
 
     if log_fn:
         for ind in indicator_defs:
             log_fn(
-                record_id=ind.get("record_id"),
+                record_id=ind["record_id"],
                 record_type="indicator_definition",
-                indicator=ind.get("indicator"),
-                source="Additional Data Points Guide",
-                confidence=ind.get("confidence"),
-                notes=f"From {ind.get('category')} indicators",
+                description=ind["indicator"],
+                source_url="Additional Data Points Guide",
+                confidence=ind["confidence"],
+                justification=ind.get("notes"),
             )
 
     return df_enriched
 
 
 # -------------------------------------------------
-# Observation ingestion from guide
+# Guide-derived observations ingestion
 # -------------------------------------------------
 
 def add_guide_observations(
@@ -68,18 +64,19 @@ def add_guide_observations(
     log_fn: Callable | None = None,
 ) -> pd.DataFrame:
     """
-    Add placeholder or estimated observations derived from the guide.
+    Add observations derived from the Additional Data Points Guide.
     """
 
     enriched_obs = []
 
     for obs in observations:
-        enriched = {
-            **obs,
-            "collection_date": obs.get("collection_date", _now()),
-            "collected_by": obs.get("collected_by", collected_by),
-        }
-        enriched_obs.append(enriched)
+        enriched_obs.append(
+            {
+                **obs,
+                "collected_by": obs.get("collected_by", collected_by),
+                "collection_date": obs.get("collection_date", _now()),
+            }
+        )
 
     df_enriched = append_records(df_enriched, enriched_obs)
 
@@ -88,10 +85,12 @@ def add_guide_observations(
             log_fn(
                 record_id=obs["record_id"],
                 record_type="observation",
-                indicator=obs["indicator"],
-                source=obs["source_name"],
+                description=obs["indicator"],
+                source_url=obs.get("source_url"),
                 confidence=obs["confidence"],
-                notes=obs.get("notes"),
+                justification=obs.get("notes"),
             )
 
     return df_enriched
+
+

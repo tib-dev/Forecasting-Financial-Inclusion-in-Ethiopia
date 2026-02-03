@@ -1,185 +1,115 @@
 from __future__ import annotations
 
-import re
-from typing import Dict, List, Optional, Any, Callable
 import pandas as pd
-import logging
+from datetime import datetime
+from typing import Dict, Callable, List
 
-logger = logging.getLogger(__name__)
-
-# ---------------------------------------------------------------------
-# Constants & helpers
-# ---------------------------------------------------------------------
-
-MIN_TEXT_LEN = 3
-
-
-def _safe_get(row: pd.Series, idx: int) -> Optional[Any]:
-    """Safely extract a value from a row by index."""
-    try:
-        val = row.iloc[idx]
-        return val if pd.notna(val) else None
-    except IndexError:
-        return None
+from fi_forecasting.data.additional_parsers import process_additional_data_points
+from fi_forecasting.data.guide_ingestion import (
+    add_indicator_definitions,
+    add_guide_observations,
+)
 
 
-def _is_valid_text(value: Any, min_len: int = MIN_TEXT_LEN) -> bool:
-    return isinstance(value, str) and len(value.strip()) > min_len
+def _build_indicator_definitions(
+    indicators: List[Dict],
+    category: str,
+    start_idx: int,
+) -> List[Dict]:
+    records = []
+    idx = start_idx
 
-
-def _generate_code(prefix: str, name: str, max_len: int = 25) -> str:
-    """
-    Generate a normalized indicator code.
-    Example: DIR_MOBILE_MONEY_USERS
-    """
-    cleaned = re.sub(r"[^A-Za-z0-9]+", "_", name.upper()).strip("_")
-    code = f"{prefix}_{cleaned}"
-    return code[:max_len]
-
-
-def _iterate_rows(
-    df: pd.DataFrame,
-    start_row: int,
-    handler: Callable[[pd.Series], Optional[Dict[str, Any]]],
-) -> List[Dict[str, Any]]:
-    """Generic row iterator with row handler."""
-    results: List[Dict[str, Any]] = []
-
-    for idx, row in df.iterrows():
-        if idx < start_row:
-            continue
-
-        try:
-            item = handler(row)
-            if item:
-                results.append(item)
-        except Exception as exc:
-            logger.warning("Skipping row %s due to error: %s", idx, exc)
-
-    return results
-
-
-# ---------------------------------------------------------------------
-# Sheet processors
-# ---------------------------------------------------------------------
-
-def extract_alternative_sources(df: pd.DataFrame) -> List[Dict[str, Any]]:
-    """Extract alternative baseline sources (Sheet A)."""
-
-    def handler(row: pd.Series) -> Optional[Dict[str, Any]]:
-        name = _safe_get(row, 1)
-        if not _is_valid_text(name):
-            return None
-
-        return {
-            "source_name": name.strip(),
-            "source_type": _safe_get(row, 2),
-            "source_url": _safe_get(row, 6),
-        }
-
-    return _iterate_rows(df, start_row=7, handler=handler)
-
-
-def extract_direct_indicators(df: pd.DataFrame) -> List[Dict[str, Any]]:
-    """Extract direct correlation indicators (Sheet B)."""
-
-    def handler(row: pd.Series) -> Optional[Dict[str, Any]]:
-        name = _safe_get(row, 1)
-        if not _is_valid_text(name):
-            return None
-
-        pillar = (
-            "ACCESS"
-            if any(k in name.lower() for k in ("account", "agent"))
-            else "USAGE"
+    for ind in indicators:
+        idx += 1
+        records.append(
+            {
+                "record_id": f"IND_DEF_{idx:05d}",
+                "record_type": "indicator_definition",
+                "pillar": ind["pillar"],
+                "indicator": ind["indicator"],
+                "indicator_code": ind["indicator_code"],
+                "indicator_direction": (
+                    "positive"
+                    if "positive" in str(ind.get("correlation", "")).lower()
+                    else "negative"
+                ),
+                "source_name": ind.get("source", "Multiple"),
+                "confidence": "medium",
+                "category": category,
+                "notes": ind.get("why_matters"),
+                "collected_by": "Data Scientist",
+                "collection_date": datetime.now().strftime("%Y-%m-%d"),
+            }
         )
 
-        return {
-            "indicator": name.strip(),
-            "indicator_code": _generate_code("DIR", name),
-            "correlation": _safe_get(row, 2),
-            "why_matters": _safe_get(row, 3),
-            "source": _safe_get(row, 4),
-            "pillar": pillar,
-        }
-
-    return _iterate_rows(df, start_row=8, handler=handler)
+    return records
 
 
-def extract_indirect_indicators(df: pd.DataFrame) -> List[Dict[str, Any]]:
-    """Extract indirect/proxy indicators (Sheet C)."""
-
-    def handler(row: pd.Series) -> Optional[Dict[str, Any]]:
-        name = _safe_get(row, 1)
-        if not _is_valid_text(name):
-            return None
-
-        return {
-            "indicator": name.strip(),
-            "indicator_code": _generate_code("IND", name),
-            "correlation": _safe_get(row, 2),
-            "why_matters": _safe_get(row, 3),
-            "source": _safe_get(row, 4),
-            "pillar": "ACCESS",
-        }
-
-    return _iterate_rows(df, start_row=8, handler=handler)
-
-
-def extract_market_nuances(df: pd.DataFrame) -> List[Dict[str, Any]]:
-    """Extract market nuances (Sheet D)."""
-
-    def handler(row: pd.Series) -> Optional[Dict[str, Any]]:
-        theme = _safe_get(row, 1)
-        if not _is_valid_text(theme):
-            return None
-
-        return {
-            "theme": theme.strip(),
-            "what_to_watch": _safe_get(row, 2),
-            "market_impact": _safe_get(row, 3),
-        }
-
-    return _iterate_rows(df, start_row=6, handler=handler)
-
-
-# ---------------------------------------------------------------------
-# Orchestrator
-# ---------------------------------------------------------------------
-
-def process_additional_data_points(
-    sheets: Dict[str, pd.DataFrame]
-) -> Dict[str, List[Dict[str, Any]]]:
+def enrich_dataset(
+    df_unified: pd.DataFrame,
+    additional_data: Dict,
+    log_fn: Callable | None = None,
+) -> pd.DataFrame:
     """
-    Process all Additional Data Points sheets.
-
-    Expected keys:
-    - alternative_baselines
-    - direct_correlation
-    - indirect_correlation
-    - market_nuances
+    Task-1 enrichment orchestrator.
     """
 
-    if not sheets:
-        logger.info("No additional data sheets provided.")
-        return {
-            "alternative_sources": [],
-            "direct_indicators": [],
-            "indirect_indicators": [],
-            "market_notes": [],
-        }
+    parsed = process_additional_data_points(additional_data)
 
-    return {
-        "alternative_sources": extract_alternative_sources(
-            sheets.get("alternative_baselines", pd.DataFrame())
-        ),
-        "direct_indicators": extract_direct_indicators(
-            sheets.get("direct_correlation", pd.DataFrame())
-        ),
-        "indirect_indicators": extract_indirect_indicators(
-            sheets.get("indirect_correlation", pd.DataFrame())
-        ),
-        "market_notes": extract_market_nuances(
-            sheets.get("market_nuances", pd.DataFrame())
-        ),
-    }
+    direct = parsed.get("direct_indicators", [])
+    indirect = parsed.get("indirect_indicators", [])
+
+    # -------------------------
+    # Indicator definitions
+    # -------------------------
+    existing_defs = df_unified.query(
+        "record_type == 'indicator_definition'"
+    )
+
+    start_idx = (
+        existing_defs["record_id"]
+        .str.extract(r"(\d+)$")[0]
+        .astype(float)
+        .max()
+    )
+    start_idx = int(start_idx) if pd.notna(start_idx) else 1000
+
+    indicator_defs = (
+        _build_indicator_definitions(direct, "direct_correlation", start_idx)
+        + _build_indicator_definitions(indirect, "indirect_correlation", start_idx + 100)
+    )
+
+    df_enriched = add_indicator_definitions(
+        df_enriched=df_unified,
+        indicator_defs=indicator_defs,
+        log_fn=log_fn,
+    )
+
+    # -------------------------
+    # Guide-derived observations (placeholders)
+    # -------------------------
+    guide_observations = []
+
+    for ind in direct + indirect:
+        guide_observations.append(
+            {
+                "record_id": f"OBS_GUIDE_{ind['indicator_code']}",
+                "record_type": "observation",
+                "pillar": ind["pillar"],
+                "indicator": ind["indicator"],
+                "indicator_code": ind["indicator_code"],
+                "value_numeric": None,
+                "observation_date": None,
+                "source_name": ind.get("source"),
+                "confidence": "medium",
+                "notes": ind.get("why_matters"),
+            }
+        )
+
+    df_enriched = add_guide_observations(
+        df_enriched=df_enriched,
+        observations=guide_observations,
+        log_fn=log_fn,
+    )
+
+    return df_enriched

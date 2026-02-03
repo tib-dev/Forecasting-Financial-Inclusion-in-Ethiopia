@@ -78,9 +78,8 @@ py_files=(
 
   # Core
   "src/fi_forecasting/core/__init__.py"
-  "src/fi_forecasting/core/config.py"
+  "src/fi_forecasting/core/project_root.py"
   "src/fi_forecasting/core/settings.py"
-  "src/fi_forecasting/core/constants.py"
 
   # Data
   "src/fi_forecasting/data/__init__.py"
