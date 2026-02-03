@@ -1,78 +1,175 @@
 import pandas as pd
 from pathlib import Path
 from datetime import datetime
-from fi_forecasting.data.enrichers import process_additional_data_points
+from typing import Dict, List
 
-# -----------------------------
-# Helper functions
-# -----------------------------
+from fi_forecasting.data.additional_parsers import process_additional_data_points
 
-def generate_observation_record(indicator_dict, observation_date=None):
+REFERENCE_KEY = "record_id"
+
+
+# ------------------------------------------------------------------
+# Helpers
+# ------------------------------------------------------------------
+
+def _generate_observation_record(
+    indicator: Dict,
+    observation_date: str | None,
+) -> Dict:
     """
-    Create a unified observation record from extracted indicator info.
+    Create a unified observation record following schema rules.
     """
-    record = {
-        'record_type': 'observation',
-        'pillar': indicator_dict.get('pillar'),
-        'indicator': indicator_dict.get('indicator'),
-        'indicator_code': indicator_dict.get('indicator_code'),
-        'value_numeric': None,  # Fill if actual value available
-        'observation_date': observation_date,
-        'source_name': indicator_dict.get('source'),
-        'source_url': indicator_dict.get('source_url', None),
-        'confidence': 'medium',  # Default
-        'notes': indicator_dict.get('why_matters', '')
+    return {
+        "record_type": "observation",
+        "pillar": indicator.get("pillar"),
+        "indicator": indicator.get("indicator"),
+        "indicator_code": indicator.get("indicator_code"),
+        "value_numeric": indicator.get("value_numeric"),
+        "observation_date": observation_date,
+        "source_name": indicator.get("source"),
+        "source_url": indicator.get("source_url"),
+        "confidence": indicator.get("confidence", "medium"),
+        "original_text": indicator.get("original_text"),
+        "collected_by": indicator.get("collected_by", "Analyst"),
+        "collection_date": indicator.get(
+            "collection_date", datetime.now().strftime("%Y-%m-%d")
+        ),
+        "notes": indicator.get("why_matters"),
     }
-    return record
 
 
-def append_to_log(log_path: Path, records: list, section: str):
+def _generate_indicator_definitions(
+    indicators: List[Dict],
+    category: str,
+    start_idx: int,
+) -> List[Dict]:
     """
-    Append enrichment records to markdown log
+    Create indicator_definition records for documentation & reuse.
     """
-    now = datetime.now().strftime("%Y-%m-%d")
-    log_path.touch(exist_ok=True)
-    with log_path.open("a", encoding="utf-8") as f:
-        f.write(f"\n## {section} ({now})\n")
-        for rec in records[:5]:  # show first 5 for brevity
-            f.write(f"- {rec}\n")
-        if len(records) > 5:
-            f.write(f"... +{len(records)-5} more\n")
+    records = []
+    counter = start_idx
 
-
-# -----------------------------
-# Main enrichment pipeline
-# -----------------------------
-def enrich_unified_dataset(df_unified: pd.DataFrame, additional_data: dict, log_path: Path, observation_date=None):
-
-    enriched = process_additional_data_points(additional_data)
-
-    new_obs_records = []
-
-    direct = enriched.get('direct_indicators', [])
-    indirect = enriched.get('indirect_indicators', [])
-
-    for ind in direct + indirect:
-        new_obs_records.append(
-            generate_observation_record(ind, observation_date)
+    for ind in indicators:
+        counter += 1
+        records.append(
+            {
+                "record_id": f"IND_DEF_{counter:05d}",
+                "record_type": "indicator_definition",
+                "pillar": ind.get("pillar"),
+                "indicator": ind.get("indicator"),
+                "indicator_code": ind.get("indicator_code"),
+                "indicator_direction": (
+                    "positive"
+                    if "positive" in str(ind.get("correlation", "")).lower()
+                    else "negative"
+                ),
+                "source_name": ind.get("source", "Multiple"),
+                "source_url": ind.get("source_url"),
+                "confidence": "medium",
+                "collected_by": "Data Scientist",
+                "collection_date": datetime.now().strftime("%Y-%m-%d"),
+                "category": category,
+                "notes": ind.get("why_matters"),
+            }
         )
 
-    if new_obs_records:
-        new_df = pd.DataFrame(new_obs_records)
-        new_df = new_df.reindex(columns=df_unified.columns)
-        df_unified = pd.concat([df_unified, new_df], ignore_index=True)
-        append_to_log(log_path, new_obs_records, section="New Observation Records")
+    return records
 
-    append_to_log(
-        log_path,
-        enriched.get('alternative_sources', []),
-        section="Alternative Sources"
+
+def _append_to_log(log_path: Path, section: str, records: List[Dict]) -> None:
+    """
+    Append enrichment actions to markdown log.
+    """
+    log_path.parent.mkdir(parents=True, exist_ok=True)
+    log_path.touch(exist_ok=True)
+
+    with log_path.open("a", encoding="utf-8") as f:
+        f.write(f"\n## {section} — {datetime.now().strftime('%Y-%m-%d')}\n")
+        for rec in records[:5]:
+            f.write(f"- {rec}\n")
+        if len(records) > 5:
+            f.write(f"... +{len(records) - 5} more\n")
+
+
+# ------------------------------------------------------------------
+# Public API
+# ------------------------------------------------------------------
+
+def enrich_dataset(
+    df_unified: pd.DataFrame,
+    additional_data: Dict,
+    log_path: Path,
+    observation_date: str | None = None,
+) -> pd.DataFrame:
+    """
+    Enrich unified dataset with additional indicators and documentation.
+
+    Returns:
+        Updated unified DataFrame.
+    """
+    parsed = process_additional_data_points(additional_data)
+
+    direct = parsed.get("direct_indicators", [])
+    indirect = parsed.get("indirect_indicators", [])
+
+    # -------------------------
+    # Observations
+    # -------------------------
+    observation_records = [
+        _generate_observation_record(ind, observation_date)
+        for ind in (direct + indirect)
+    ]
+
+    obs_df = pd.DataFrame(observation_records)
+    obs_df = obs_df.reindex(columns=df_unified.columns)
+
+    # -------------------------
+    # Indicator definitions
+    # -------------------------
+    max_id = (
+        df_unified[REFERENCE_KEY]
+        .dropna()
+        .astype(str)
+        .str.extract(r"(\d+)$")[0]
+        .astype(float)
+        .max()
+    )
+    start_idx = int(max_id) if pd.notna(max_id) else 1000
+
+    indicator_defs = (
+        _generate_indicator_definitions(direct, "direct_correlation", start_idx)
+        + _generate_indicator_definitions(indirect, "indirect_correlation", start_idx + 100)
     )
 
-    append_to_log(
-        log_path,
-        enriched.get('market_notes', []),
-        section="Market Nuances"
+    ind_def_df = pd.DataFrame(indicator_defs)
+    ind_def_df = ind_def_df.reindex(columns=df_unified.columns)
+
+    # -------------------------
+    # Merge
+    # -------------------------
+    enriched_df = pd.concat(
+        [df_unified, obs_df, ind_def_df], ignore_index=True
     )
 
-    return df_unified
+    # -------------------------
+    # Logging
+    # -------------------------
+    if observation_records:
+        _append_to_log(log_path, "New Observation Records", observation_records)
+
+    if indicator_defs:
+        _append_to_log(log_path, "New Indicator Definitions", indicator_defs)
+
+    _append_to_log(
+        log_path,
+        "Alternative Sources",
+        parsed.get("alternative_sources", []),
+    )
+
+    _append_to_log(
+        log_path,
+        "Market Nuances",
+        parsed.get("market_notes", []),
+    )
+
+    return enriched_df
