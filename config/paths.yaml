@@ -10,11 +10,6 @@ paths:
     logs: "reports/logs"
     docs: "reports/docs"
 
-  notebooks:
-    root: "notebooks"
-    exploration: "notebooks/exploration"
-    analysis: "notebooks/analysis"
-
   src:
     root: "src"
     modules: "src/fi_forecasting"
